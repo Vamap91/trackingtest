@@ -5,6 +5,14 @@ import json
 st.title('Consulta de Cliente CarGlass')
 st.subheader('Interface para teste do webhook n8n')
 
+# Alerta sobre o modo de teste
+st.warning("""
+**IMPORTANTE - Modo de Teste**: 
+1. Antes de fazer uma consulta, você precisa clicar no botão 'Test workflow' no canvas do n8n
+2. Cada clique no botão 'Test workflow' permite apenas UMA chamada ao webhook
+3. Se receber erro 404, volte ao n8n e clique novamente no botão 'Test workflow'
+""")
+
 # Criar o formulário
 with st.form("consulta_form"):
     tipo_consulta = st.selectbox(
@@ -54,9 +62,45 @@ if submitted:
                 # Exibir os dados retornados de forma organizada
                 st.subheader("Resultado da consulta:")
                 st.json(result)
+            elif response.status_code == 404:
+                st.error("Webhook não encontrado ou não ativado.")
+                st.info("""
+                **Para resolver:**
+                1. Abra o n8n e clique no botão 'Test workflow' no canvas
+                2. Volte para esta página e tente novamente
+                3. Lembre-se: cada clique no botão 'Test workflow' permite apenas UMA consulta
+                """)
             else:
                 st.error(f"Erro ao consultar: {response.status_code}")
                 st.text(response.text)
         except Exception as e:
             st.error(f"Ocorreu um erro na requisição: {str(e)}")
             st.info("Verifique se o webhook está ativo e configurado corretamente.")
+
+# Seção de ajuda
+with st.expander("Como usar esta interface de teste"):
+    st.markdown("""
+    ### Instruções:
+    
+    1. **Prepare o n8n**:
+       - Abra seu fluxo no n8n
+       - Clique no botão 'Test workflow' que você adicionou no canvas
+       - Isso ativará o webhook temporariamente para UMA chamada
+    
+    2. **Faça a consulta**:
+       - Selecione o tipo de consulta (CPF, Telefone ou Ordem)
+       - Digite o valor correspondente
+       - Clique em "Consultar"
+    
+    3. **Se receber erro 404**:
+       - O webhook não está ativo ou já foi usado
+       - Volte ao n8n e clique novamente no botão 'Test workflow'
+       - Retorne a esta página e tente a consulta novamente
+    
+    ### Limitações do modo de teste:
+    
+    No ambiente de teste do n8n, os webhooks são temporários e funcionam apenas para uma única chamada após ativar o modo de teste. Para testes contínuos, você precisaria:
+    
+    - Ativar seu fluxo no n8n (modo de produção)
+    - Ou clicar no botão 'Test workflow' antes de cada consulta nesta interface
+    """)
