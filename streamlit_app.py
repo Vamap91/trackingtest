@@ -212,10 +212,11 @@ def get_client_data(tipo, valor):
         st.error(f"Erro ao consultar: {str(e)}")
         return None
 
-# Função para processar a entrada do usuário
+# AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII Função para processar a entrada do usuário
 def process_user_input():
-    # Obter a entrada do usuário
-    user_input = st.session_state.user_input
+    # Corrigir aqui: Obter a entrada do usuário corretamente
+    user_input_key = f"user_input_{st.session_state.user_input_key}"
+    user_input = st.session_state.get(user_input_key, "")
     
     if not user_input:
         return
@@ -224,97 +225,65 @@ def process_user_input():
     st.session_state.messages.append({"role": "user", "content": user_input})
     
     # Resetar o input para limpar o campo
-    st.session_state.user_input = ""
+    st.session_state[user_input_key] = ""
     st.session_state.user_input_key += 1
     
     # Se estiver aguardando identificador
     if st.session_state.awaiting_identifier:
-        # Tentar detectar o tipo de identificador
         tipo, valor = detect_identifier_type(user_input)
         
         if tipo:
-            # Mostrar mensagem de processamento temporária
             temp_message = "Estou consultando suas informações..."
             st.session_state.messages.append({"role": "assistant", "content": temp_message})
             
-            # Processar a solicitação
             with st.spinner("Consultando..."):
                 client_data = get_client_data(tipo, valor)
             
-            # Remover a mensagem temporária
             st.session_state.messages.pop()
             
             if client_data and client_data.get("sucesso"):
-                # Armazenar dados do cliente
                 st.session_state.cliente_info = client_data
                 st.session_state.awaiting_identifier = False
                 
-                # Extrair informações principais
                 dados = client_data.get("dados", {})
                 nome = dados.get("nome", "Cliente")
                 status = dados.get("status", "Em processamento")
                 ordem = dados.get("ordem", "N/A")
                 
-                # Exibir mensagem personalizada com os dados
-                status_tag = ""
-                if status.lower() == "concluído":
-                    status_tag = '<span class="status-tag complete">Concluído</span>'
-                elif status.lower() == "em andamento":
-                    status_tag = '<span class="status-tag progress">Em andamento</span>'
-                else:
-                    status_tag = '<span class="status-tag scheduled">Agendado</span>'
+                status_tag = '<span class="status-tag complete">Concluído</span>' if status.lower() == "concluído" else '<span class="status-tag progress">Em andamento</span>'
                 
-                # Usar a mensagem da IA se disponível
-                if "mensagem_ia" in client_data:
-                    response_message = client_data["mensagem_ia"]
-                else:
-                    response_message = f"""
-                    Olá {nome}! Encontrei suas informações.
-                    
-                    Seu atendimento está com status: {status_tag}
-                    
-                    Ordem de serviço: {ordem}
-                    
-                    Como posso ajudar você hoje? Você pode perguntar sobre:
-                    - Detalhes do seu atendimento
-                    - Previsão de conclusão
-                    - Peças utilizadas
-                    - Lojas mais próximas
-                    """
+                response_message = client_data.get("mensagem_ia", f"""
+                    Olá {nome}! Encontrei suas informações.<br>
+                    Seu atendimento está com status: {status_tag}<br>
+                    Ordem de serviço: {ordem}<br>
+                    Como posso ajudar você hoje?
+                """)
                 
                 st.session_state.messages.append({"role": "assistant", "content": response_message})
             else:
-                # Não encontrou o cliente
                 st.session_state.messages.append({
                     "role": "assistant", 
-                    "content": f"""
-                    Não consegui encontrar informações com o {tipo} fornecido. 
-                    
-                    Por favor, verifique se digitou corretamente ou tente outro tipo de identificação.
-                    
-                    Você pode informar:
-                    - CPF (11 dígitos)
-                    - Telefone (com DDD)
-                    - Placa do veículo
-                    - Número da ordem de serviço
-                    - Chassi do veículo
-                    """
+                    "content": "Não consegui encontrar informações com o identificador fornecido. Por favor, tente novamente."
                 })
         else:
-            # Não conseguiu identificar o tipo
             st.session_state.messages.append({
                 "role": "assistant", 
-                "content": """
-                Não consegui identificar o formato da informação fornecida.
-                
-                Por favor, digite um dos seguintes:
-                - CPF (11 dígitos)
-                - Telefone (com DDD)
-                - Placa do veículo (AAA0000 ou AAA0A00)
-                - Número da ordem de serviço
-                - Chassi do veículo (17 caracteres)
-                """
+                "content": "Não consegui identificar o formato da informação fornecida. Por favor, tente novamente."
             })
+    else:
+        with st.spinner("Processando sua pergunta..."):
+            time.sleep(1.5)
+            
+            resposta = f"""
+            Baseado nos dados do seu atendimento:<br>
+            {user_input}<br>
+            Para mais detalhes, entre em contato com nossa central: 0800-727-2327.<br>
+            Posso ajudar com mais alguma informação?
+            """
+            
+            st.session_state.messages.append({"role": "assistant", "content": resposta})
+
+        
     # Se já identificou o cliente, processar perguntas adicionais
     else:
         # Aqui processaria as perguntas usando a IA com contexto do cliente
