@@ -1,0 +1,3 @@
+"""
+Serviços mock para desenvolvimento
+"""
