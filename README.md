@@ -1,19 +1,25 @@
-# 🎈 Blank app template
+# CarGlass Assistente Virtual
 
-A simple Streamlit app template for you to modify!
+Sistema conversacional que permite aos clientes da CarGlass consultar informações sobre seus atendimentos através de diferentes plataformas (Web e WhatsApp).
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+## Visão Geral
 
-### How to run it on your own machine
+O CarGlass Assistente Virtual é um sistema que integra:
+- Interface web via Streamlit
+- Integração com WhatsApp
+- Consultas à API Fusion da CarGlass
+- Respostas personalizadas com IA
 
-1. Install the requirements
+## Funcionalidades
 
-   ```
-   $ pip install -r requirements.txt
-   ```
+- Consulta de status por múltiplos identificadores (CPF, telefone, placa, ordem, chassi)
+- Respostas personalizadas baseadas no contexto do cliente
+- Escalonamento para atendentes humanos quando necessário
+- Interface conversacional intuitiva
 
-2. Run the app
+## Instalação
 
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+1. Clone este repositório:
+```bash
+git clone https://github.com/carglass/assistente-virtual.git
+cd carglass-assistente-virtual
