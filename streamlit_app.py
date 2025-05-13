@@ -174,7 +174,7 @@ def detect_identifier_type(text):
 # Função para buscar dados do cliente
 def get_client_data(tipo, valor):
     # URL do webhook n8n
-    webhook_url = "https://carglasspaschoa.app.n8n.cloud/webhook/18504dee-bedd-462d-874a-df828daff30c"
+    webhook_url = "https://webhook.site/12345678-abcd-1234-5678-abcdef123456"
     
     # Preparar os dados para enviar
     payload = {
