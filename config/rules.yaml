@@ -1,0 +1,36 @@
+# Configurações de regras e ações para o sistema
+rules:
+  - name: "identify_customer"
+    description: "Identificar cliente pelo identificador fornecido"
+    conditions:
+      - type: "intent"
+        value: "provide_identifier"
+      - type: "session_state"
+        value: "awaiting_identifier"
+    actions:
+      - type: "query_status"
+        params:
+          id_type: "{{intent.entity_type}}"
+          identifier: "{{intent.value}}"
+  
+  - name: "answer_status_question"
+    description: "Responder perguntas sobre status do atendimento"
+    conditions:
+      - type: "intent"
+        value: "ask_status"
+      - type: "has_client_data"
+        value: true
+    actions:
+      - type: "answer_question"
+        params:
+          question: "{{intent.value}}"
+  
+  - name: "escalate_to_human"
+    description: "Escalonar para atendente humano"
+    conditions:
+      - type: "intent"
+        value: "request_human"
+    actions:
+      - type: "escalate"
+        params:
+          reason: "customer_request"
