@@ -4,6 +4,7 @@ import json
 import time
 import re
 import uuid
+import openai
 
 # Configuração da página
 st.set_page_config(
@@ -107,7 +108,7 @@ with col2:
 # Inicializar variáveis de sessão
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Olá! Sou o assistente virtual da CarGlass. Posso ajudar com informações sobre seu atendimento, status do serviço e mais. Digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
+        {"role": "assistant", "content": "Olá! Sou o assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
     ]
 
 if "awaiting_identifier" not in st.session_state:
@@ -146,39 +147,150 @@ def detect_identifier_type(text):
 
 # Função para buscar dados do cliente
 def get_client_data(tipo, valor):
-    """Versão com dados simulados para teste de interface"""
+    """Função para buscar dados do cliente através da API ou dados simulados"""
     
-    # Mostrar banner de ambiente de teste
-    st.warning("⚠️ AMBIENTE DE TESTE - Usando dados simulados para demonstração")
+    # Configuração - modo de simulação para testes
+    USAR_DADOS_SIMULADOS = True  # Mude para False para usar a API real
     
-    # Simular um pequeno atraso como em chamada real
-    time.sleep(1)
-    
-    # Dados simulados baseados no tipo de identificador
-    mock_data = {
-        "sucesso": True,
-        "tipo": tipo,
-        "valor": valor,
-        "dados": {
-            "nome": "Cliente Teste",
-            "cpf": "123.456.789-00" if tipo == "cpf" else "N/A",
-            "telefone": "(11) 98765-4321" if tipo == "telefone" else "N/A",
-            "ordem": f"ORD{12345}" if tipo == "ordem" else f"ORD{65432}",
-            "status": ["Em andamento", "Concluído", "Agendado"][hash(valor) % 3],
-            "tipo_servico": "Troca de Parabrisa",
-            "veiculo": {
-                "modelo": "Honda Civic",
-                "placa": valor.upper() if tipo == "placa" else "ABC1D23",
-                "ano": "2023"
+    if USAR_DADOS_SIMULADOS:
+        # Mostrar banner de ambiente de teste
+        st.warning("⚠️ AMBIENTE DE TESTE - Usando dados simulados para demonstração")
+        
+        # Simular um pequeno atraso como em chamada real
+        time.sleep(1)
+        
+        # Dados simulados baseados no tipo de identificador
+        mock_data = {
+            "sucesso": True,
+            "tipo": tipo,
+            "valor": valor,
+            "dados": {
+                "nome": "Cliente Teste",
+                "cpf": "123.456.789-00" if tipo == "cpf" else "N/A",
+                "telefone": "(11) 98765-4321" if tipo == "telefone" else "N/A",
+                "ordem": f"ORD{12345}" if tipo == "ordem" else f"ORD{65432}",
+                "status": ["Em andamento", "Concluído", "Agendado"][hash(valor) % 3],
+                "tipo_servico": "Troca de Parabrisa",
+                "veiculo": {
+                    "modelo": "Honda Civic",
+                    "placa": valor.upper() if tipo == "placa" else "ABC1D23",
+                    "ano": "2023"
+                }
             }
         }
-    }
-    
-    # Para testes, falhar ocasionalmente para simular erro de servidor
-    if hash(valor) % 10 == 0:
-        return None
         
-    return mock_data
+        # Para testes, falhar ocasionalmente para simular erro de servidor
+        if hash(valor) % 10 == 0:
+            return None
+            
+        return mock_data
+    
+    else:
+        # Usar a API real
+        try:
+            # URL base do serviço
+            base_url = "http://fusion-hml.carglass.hml.local:3000/api/status"
+            
+            # Montar URL específica com base no tipo de identificador
+            api_url = f"{base_url}/{tipo}/{valor}"
+            
+            # Headers da requisição
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
+            # Fazer a requisição GET para a API
+            response = requests.get(api_url, headers=headers, timeout=30)
+            
+            # Verificar se a resposta foi bem-sucedida
+            if response.status_code == 200:
+                try:
+                    return response.json()
+                except json.JSONDecodeError:
+                    st.error("Erro ao processar resposta do servidor.")
+                    return None
+            else:
+                st.warning(f"Servidor retornou status {response.status_code}")
+                return None
+                
+        except Exception as e:
+            st.error(f"Erro ao consultar API: {str(e)}")
+            return None
+
+# Função para processar consultas do usuário com IA
+def process_user_query(user_input, client_data):
+    """Processa consultas do usuário usando GPT-4 Turbo após identificação"""
+    
+    # Configurar API key da OpenAI - buscando do secrets do Streamlit
+    try:
+        # Tentativa de acessar a chave da API das secrets do Streamlit
+        openai.api_key = st.secrets["openai"]["api_key"]
+        has_api_key = True
+    except (KeyError, TypeError):
+        has_api_key = False
+    
+    if not has_api_key:
+        st.warning("⚠️ AMBIENTE DE TESTE - API OpenAI não configurada. Usando respostas simuladas.")
+        # Retornar resposta simulada
+        return f"""
+        Claro! Baseado nos dados do seu atendimento, posso informar que:
+        
+        {user_input}
+        
+        Para mais detalhes específicos sobre essa questão, recomendo entrar em contato com nossa central pelo 0800-727-2327.
+        
+        Posso ajudar com mais alguma informação? 😊
+        """
+    
+    try:
+        # Extrair dados do cliente
+        dados = client_data.get("dados", {})
+        nome = dados.get("nome", "Cliente")
+        status = dados.get("status", "Em processamento")
+        ordem = dados.get("ordem", "N/A")
+        
+        # Construir prompt para o GPT-4 Turbo com personalidade mais amigável
+        system_message = f"""
+        Você é o assistente virtual da CarGlass, amigável, prestativo e especializado em atendimento ao cliente.
+        
+        Personalidade: Use um tom amigável, caloroso e empático. Seja conversacional e natural como um atendente humano que se importa.
+        Refira-se ao cliente pelo nome quando possível. Use linguagem simples e direta, evitando termos técnicos desnecessários.
+        Ocasionalmente use emojis adequados (😊, 👍, etc.) para tornar a conversa mais amigável, mas sem exagerar.
+        
+        Você está conversando com {nome}, que tem um atendimento com as seguintes informações:
+        - Status: {status}
+        - Ordem: {ordem}
+        - Serviço: {dados.get('tipo_servico', 'N/A')}
+        - Veículo: {dados.get('veiculo', {}).get('modelo', 'N/A')} - {dados.get('veiculo', {}).get('ano', 'N/A')}
+        - Placa: {dados.get('veiculo', {}).get('placa', 'N/A')}
+        
+        Forneça respostas úteis, empáticas e precisas com base no contexto do atendimento.
+        Limite suas respostas a no máximo 3 parágrafos. Seja conciso e direto.
+        Não invente informações que não estão no contexto.
+        Se não souber a resposta, sugira contatar a central de atendimento de forma amigável.
+        
+        Quando apropriado, mostre entusiasmo com pequenas expressões como "Claro!", "Com prazer!" ou "Sem problema!" no início das respostas.
+        """
+        
+        # Chamada para o modelo GPT-4 Turbo da OpenAI
+        # Usando o client da versão mais recente da OpenAI
+        response = openai.chat.completions.create(
+            model="gpt-4-turbo-preview",  # Usar GPT-4 Turbo
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_input}
+            ],
+            max_tokens=300,
+            temperature=0.7
+        )
+        
+        # Extrair e retornar a resposta
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        st.error(f"Erro ao processar com IA: {str(e)}")
+        return "Desculpe, não foi possível processar sua pergunta. Por favor, tente novamente ou entre em contato com nossa central de atendimento pelo 0800-727-2327."
 
 # Função para processar a entrada do usuário
 def process_user_input():
@@ -235,7 +347,7 @@ def process_user_input():
                     response_message = client_data["mensagem_ia"]
                 else:
                     response_message = f"""
-                    Olá {nome}! Encontrei suas informações.
+                    Olá {nome}! 😊 Encontrei suas informações.
                     
                     Seu atendimento está com status: {status_tag}
                     
@@ -246,6 +358,8 @@ def process_user_input():
                     - Previsão de conclusão
                     - Peças utilizadas
                     - Lojas mais próximas
+                    
+                    Estou à disposição para esclarecer qualquer dúvida!
                     """
                 
                 st.session_state.messages.append({"role": "assistant", "content": response_message})
@@ -254,7 +368,7 @@ def process_user_input():
                 st.session_state.messages.append({
                     "role": "assistant", 
                     "content": f"""
-                    Não consegui encontrar informações com o {tipo} fornecido. 
+                    Não consegui encontrar informações com o {tipo} fornecido. 😕
                     
                     Por favor, verifique se digitou corretamente ou tente outro tipo de identificação.
                     
@@ -264,6 +378,8 @@ def process_user_input():
                     - Placa do veículo
                     - Número da ordem de serviço
                     - Chassi do veículo
+                    
+                    Estou aqui para ajudar quando estiver pronto! 👍
                     """
                 })
         else:
@@ -271,7 +387,7 @@ def process_user_input():
             st.session_state.messages.append({
                 "role": "assistant", 
                 "content": """
-                Não consegui identificar o formato da informação fornecida.
+                Não consegui identificar o formato da informação fornecida. 😕
                 
                 Por favor, digite um dos seguintes:
                 - CPF (11 dígitos)
@@ -279,35 +395,25 @@ def process_user_input():
                 - Placa do veículo (AAA0000 ou AAA0A00)
                 - Número da ordem de serviço
                 - Chassi do veículo (17 caracteres)
+                
+                Vamos tentar novamente? Estou aqui para ajudar! 😊
                 """
             })
     # Se já identificou o cliente, processar perguntas adicionais
     else:
-        # Aqui processaria as perguntas usando a IA com contexto do cliente
+        # Aqui processamos as perguntas usando a IA com contexto do cliente
         client_data = st.session_state.cliente_info
-        dados = client_data.get("dados", {})
         
-        # Simular o processamento da IA
+        # Processar com a OpenAI ou resposta simulada
         with st.spinner("Processando sua pergunta..."):
-            time.sleep(1.5)  # Simular processamento
+            resposta = process_user_query(user_input, client_data)
             
-            # Resposta simulada - em uma implementação real, viria da API de IA
-            resposta = f"""
-            Baseado nos dados do seu atendimento, posso informar que:
-            
-            {user_input}
-            
-            Para mais detalhes específicos sobre essa questão, recomendo entrar em contato com nossa central pelo 0800-727-2327.
-            
-            Posso ajudar com mais alguma informação?
-            """
-            
-            st.session_state.messages.append({"role": "assistant", "content": resposta})
+        st.session_state.messages.append({"role": "assistant", "content": resposta})
 
 # Função para reiniciar a conversa
 def reset_conversation():
     st.session_state.messages = [
-        {"role": "assistant", "content": "Olá! Sou o assistente virtual da CarGlass. Posso ajudar com informações sobre seu atendimento, status do serviço e mais. Digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
+        {"role": "assistant", "content": "Olá! Sou o assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
     ]
     st.session_state.awaiting_identifier = True
     st.session_state.cliente_info = None
