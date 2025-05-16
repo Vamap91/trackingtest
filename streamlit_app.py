@@ -1,4 +1,12 @@
 import streamlit as st
+# Configuração da página - DEVE ser a primeira chamada Streamlit
+st.set_page_config(
+    page_title="CarGlass - Assistente Virtual",
+    page_icon="🚗",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 import requests
 import json
 import time
@@ -20,14 +28,6 @@ def get_image_base64(image_path):
 atendente_img_path = "assets/atendente-carglass.jpg"
 atendente_img_b64 = get_image_base64(atendente_img_path)
 atendente_img_url = f"data:image/jpeg;base64,{atendente_img_b64}" if atendente_img_b64 else "https://api.dicebear.com/7.x/bottts/svg?seed=CarGlass"
-
-# Configuração da página
-st.set_page_config(
-    page_title="CarGlass - Assistente Virtual",
-    page_icon="🚗",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
 
 # CSS personalizado
 st.markdown("""
