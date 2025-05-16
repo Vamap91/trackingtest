@@ -460,7 +460,7 @@ with st.container():
 # Footer
 st.markdown("""
 <div class="footer">
-    <p>© 2025 CarGlass Brasil - Assistente Virtual</p>
+    <p>© 2025 CarGlass Brasil - Em teste e criado por Vinicius Paschoa</p>
     <p>Central de Atendimento: 0800-727-2327 | WhatsApp: (11) 4003-8070</p>
 </div>
 """, unsafe_allow_html=True)
