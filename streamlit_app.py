@@ -1,12 +1,4 @@
 import streamlit as st
-# Configuração da página - DEVE ser a primeira chamada Streamlit
-st.set_page_config(
-    page_title="CarGlass - Assistente Virtual",
-    page_icon="🚗",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
 import requests
 import json
 import time
@@ -14,6 +6,14 @@ import re
 import openai
 import base64
 from pathlib import Path
+
+# Configuração da página - DEVE ser a primeira chamada Streamlit
+st.set_page_config(
+    page_title="CarGlass - Assistente Virtual",
+    page_icon="🚗",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # Função para carregar imagens locais como base64
 @st.cache_data
