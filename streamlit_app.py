@@ -146,44 +146,40 @@ def detect_identifier_type(text):
 
 # Função para buscar dados do cliente
 def get_client_data(tipo, valor):
-    """Função para buscar dados do cliente através da API ou dados simulados"""
+    """Função para buscar dados do cliente através da API real"""
     
-    # Configuração - modo de simulação para testes
-    USAR_DADOS_SIMULADOS = True  # Mude para False para usar a API real
+    # URL base do serviço
+    base_url = "http://fusion-hml.carglass.hml.local:3000/api/status"
     
-    if USAR_DADOS_SIMULADOS:
-        # Mostrar banner de ambiente de teste
-        st.warning("⚠️ AMBIENTE DE TESTE - Usando dados simulados para demonstração")
+    # Montar URL específica com base no tipo de identificador
+    api_url = f"{base_url}/{tipo}/{valor}"
+    
+    # Headers da requisição
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    
+    try:
+        # Fazer a requisição GET para a API
+        response = requests.get(api_url, headers=headers, timeout=30)
         
-        # Simular um pequeno atraso como em chamada real
-        time.sleep(1)
-        
-        # Dados simulados baseados no tipo de identificador
-        mock_data = {
-            "sucesso": True,
-            "tipo": tipo,
-            "valor": valor,
-            "dados": {
-                "nome": "Cliente Teste",
-                "cpf": "123.456.789-00" if tipo == "cpf" else "N/A",
-                "telefone": "(11) 98765-4321" if tipo == "telefone" else "N/A",
-                "ordem": f"ORD{12345}" if tipo == "ordem" else f"ORD{65432}",
-                "status": ["Em andamento", "Concluído", "Agendado"][hash(valor) % 3],
-                "tipo_servico": "Troca de Parabrisa",
-                "veiculo": {
-                    "modelo": "Honda Civic",
-                    "placa": valor.upper() if tipo == "placa" else "ABC1D23",
-                    "ano": "2023"
-                }
-            }
-        }
-        
-        # Para testes, falhar ocasionalmente para simular erro de servidor
-        if hash(valor) % 10 == 0:
+        # Verificar se a resposta foi bem-sucedida
+        if response.status_code == 200:
+            try:
+                return response.json()
+            except json.JSONDecodeError:
+                st.error("Erro ao processar resposta do servidor.")
+                return None
+        else:
+            st.warning(f"Servidor retornou status {response.status_code}")
             return None
             
-        return mock_data
-    
+    except Exception as e:
+        st.error(f"Erro ao consultar API: {str(e)}")
+        return None
+            
+   
     else:
         # Usar a API real
         try:
