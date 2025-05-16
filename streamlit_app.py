@@ -4,6 +4,22 @@ import json
 import time
 import re
 import openai
+import base64
+from pathlib import Path
+
+# Função para carregar imagens locais como base64
+@st.cache_data
+def get_image_base64(image_path):
+    """Carrega e converte uma imagem para base64 com cache"""
+    if not Path(image_path).exists():
+        return None
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+# Carrega a imagem da atendente uma única vez
+atendente_img_path = "assets/atendente-carglass.jpg"
+atendente_img_b64 = get_image_base64(atendente_img_path)
+atendente_img_url = f"data:image/jpeg;base64,{atendente_img_b64}" if atendente_img_b64 else "https://api.dicebear.com/7.x/bottts/svg?seed=CarGlass"
 
 # Configuração da página
 st.set_page_config(
@@ -415,7 +431,8 @@ def reset_conversation():
 
 # Exibir mensagens na interface de chat
 for msg in st.session_state.messages:
-    avatar_url = "https://api.dicebear.com/7.x/bottts/svg?seed=CarGlass" if msg["role"] == "assistant" else "https://api.dicebear.com/7.x/personas/svg?seed=Client"
+    # Aqui está a mudança principal: usar a imagem da atendente para o assistente
+    avatar_url = atendente_img_url if msg["role"] == "assistant" else "https://api.dicebear.com/7.x/personas/svg?seed=Client"
     
     with st.container():
         st.markdown(f"""
