@@ -3,7 +3,6 @@ import requests
 import json
 import time
 import re
-import uuid
 import openai
 
 # Configuração da página
