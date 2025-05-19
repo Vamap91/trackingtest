@@ -162,42 +162,127 @@ def detect_identifier_type(text):
 
 # Função para buscar dados do cliente
 def get_client_data(tipo, valor):
-    """Função para buscar dados do cliente através da API real"""
+    """Função para buscar dados do cliente através da API ou dados simulados"""
     
-    # URL base do serviço
-    base_url = "http://fusion-hml.carglass.hml.local:3000/api/status"
+    # Configuração - modo de simulação para testes
+    USAR_DADOS_SIMULADOS = True  # Alternar para False quando usar localmente com API real
     
-    # Montar URL específica com base no tipo de identificador
-    api_url = f"{base_url}/{tipo}/{valor}"
-    
-    # Headers da requisição
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-    
-    try:
-        # Fazer a requisição GET para a API
-        response = requests.get(api_url, headers=headers, timeout=30)
+    if USAR_DADOS_SIMULADOS:
+        # Mostrar banner de ambiente de teste
+        st.warning("⚠️ AMBIENTE DE TESTE - Usando dados simulados com base na estrutura real")
         
-        # Verificar se a resposta foi bem-sucedida
-        if response.status_code == 200:
-            try:
-                return response.json()
-            except json.JSONDecodeError:
-                st.error("Erro ao processar resposta do servidor.")
-                return None
+        # Simular um pequeno atraso como em chamada real
+        time.sleep(1)
+        
+        # Definir mapeamentos com base nas informações do desenvolvedor
+        status_mappings = {
+            # OrderAffiliateSubStatusId -> SubStatus
+            None: "Ordem de Serviço Aberta",
+            1: "Negociar Carglass", 
+            7: "Agendar cliente",
+            10: "Confirmar Execução", 
+            12: "Análise Auditoria",
+            29: "Aguardar Vistoria",
+            32: "Acompanhar Peça"
+        }
+        
+        inspection_status = {
+            "Aguardando Fotos": "Aguardando fotos para liberação",
+            "Realizar Vistoria": "Fotos Recebidas",
+            "Vistoria Realizada": "Peça Identificada",
+            None: ""
+        }
+        
+        # Dados simulados baseados em exemplos reais do Excel
+        ordem_data = {
+            "2653636": {"subStatusId": 7, "inspectionStatus": None, "veiculo": "S10 Pick-Up LS 2.8", "placa": "EUH6E61", "ano": "2022", "servico": "Parabrisa"},
+            "2653624": {"subStatusId": 1, "inspectionStatus": None, "veiculo": "Strada Freedom 1.3", "placa": "CAR0009", "ano": "2024", "servico": "Farol Direito/Passageiro"},
+            "2653623": {"subStatusId": 12, "inspectionStatus": None, "veiculo": "Fox Connect 1.6", "placa": "CAR0015", "ano": "2022", "servico": "Under Car"},
+            "2653621": {"subStatusId": 1, "inspectionStatus": None, "veiculo": "Strada Freedom 1.3", "placa": "CAR0009", "ano": "2024", "servico": "Farol Esquerdo/Motorista"},
+            "2653616": {"subStatusId": 1, "inspectionStatus": None, "veiculo": "CITY Sedan EX 1.5", "placa": "FVO1D28", "ano": "2014", "servico": "Parabrisa"}
+        }
+        
+        # Mapear CPFs e telefones fictícios para ordens 
+        cpf_ordem = {
+            "12345678900": "2653636",
+            "98765432100": "2653624", 
+            "11122233344": "2653623"
+        }
+        
+        telefone_ordem = {
+            "11987654321": "2653636",
+            "21987654321": "2653624",
+            "31987654321": "2653623"
+        }
+        
+        # Determinar a ordem com base no tipo de identificador
+        ordem_id = None
+        if tipo == "ordem":
+            ordem_id = valor
+        elif tipo == "cpf" and valor in cpf_ordem:
+            ordem_id = cpf_ordem[valor]
+        elif tipo == "telefone" and valor in telefone_ordem:
+            ordem_id = telefone_ordem[valor]
+        elif tipo == "placa":
+            # Buscar por placa
+            for oid, data in ordem_data.items():
+                if data["placa"] == valor.upper():
+                    ordem_id = oid
+                    break
+        
+        # Se encontrou uma ordem válida
+        if ordem_id and ordem_id in ordem_data:
+            ordem_info = ordem_data[ordem_id]
+            
+            # Determinar o status com base na lógica fornecida pelo desenvolvedor
+            sub_status_id = ordem_info["subStatusId"]
+            inspection_status_name = ordem_info["inspectionStatus"]
+            
+            # Aplicar lógica para determinar o status baseado nas regras fornecidas
+            status_description = status_mappings.get(sub_status_id, "Status não identificado")
+            
+            # Adicionar informação do inspection status quando relevante
+            if inspection_status_name:
+                inspection_info = inspection_status.get(inspection_status_name, "")
+                if inspection_info:
+                    status_description = inspection_info
+            
+            # Determinar status principal com base no SubStatus
+            if sub_status_id == 10:  # ConfirmarExecução
+                main_status = "Concluído"
+            elif sub_status_id in [7, 32]:  # Agendarcliente, AcompanharPeça
+                main_status = "Em andamento"
+            else:
+                main_status = "Agendado"
+                
+            # Criar mock com dados simulados
+            mock_data = {
+                "sucesso": True,
+                "tipo": tipo,
+                "valor": valor,
+                "dados": {
+                    "nome": "Cliente Teste",
+                    "cpf": "123.456.789-00" if tipo == "cpf" else "N/A",
+                    "telefone": "(11) 98765-4321" if tipo == "telefone" else "N/A",
+                    "ordem": ordem_id,
+                    "status": main_status,
+                    "subStatus": status_description,
+                    "tipo_servico": ordem_info["servico"],
+                    "veiculo": {
+                        "modelo": ordem_info["veiculo"],
+                        "placa": ordem_info["placa"],
+                        "ano": ordem_info["ano"]
+                    }
+                }
+            }
+            
+            return mock_data
         else:
-            st.warning(f"Servidor retornou status {response.status_code}")
+            # Não encontrou a ordem ou o identificador não está mapeado
             return None
-            
-    except Exception as e:
-        st.error(f"Erro ao consultar API: {str(e)}")
-        return None
-            
-   
+    
     else:
-        # Usar a API real
+        # Usar a API real (para ambiente interno com acesso VPN)
         try:
             # URL base do serviço
             base_url = "http://fusion-hml.carglass.hml.local:3000/api/status"
@@ -243,16 +328,56 @@ def process_user_query(user_input, client_data):
     
     if not has_api_key:
         st.warning("⚠️ AMBIENTE DE TESTE - API OpenAI não configurada. Usando respostas simuladas.")
-        # Retornar resposta simulada
-        return f"""
-        Claro! Baseado nos dados do seu atendimento, posso informar que:
         
-        {user_input}
+        # Extrair dados do cliente para resposta simulada
+        dados = client_data.get("dados", {})
+        nome = dados.get("nome", "Cliente")
+        sub_status = dados.get("subStatus", "")
         
-        Para mais detalhes específicos sobre essa questão, recomendo entrar em contato com nossa central pelo 0800-727-2327.
+        # Verificar se o input contém palavras-chave sobre mudança de prestador
+        mudanca_patterns = ["mudar", "trocar", "outra oficina", "outro prestador", "mudança", "prestador", "preferencial", "cidade"]
+        has_mudanca_intent = any(pattern in user_input.lower() for pattern in mudanca_patterns)
         
-        Posso ajudar com mais alguma informação? 😊
-        """
+        if has_mudanca_intent:
+            # Resposta simulada para mudança de prestador
+            cidade_patterns = ["cidade", "local", "localidade", "município", "outra cidade"]
+            if any(pattern in user_input.lower() for pattern in cidade_patterns):
+                # Mudança de cidade
+                return f"""
+                Entendo que você deseja mudar o local de atendimento para outra cidade.
+                
+                A troca de cidade será realizada. Temos um prazo de 48 horas para encaminhar, via link, as informações do agendamento.
+                
+                Nossa equipe realizará a troca no sistema e entrará em contato com a oficina da cidade indicada para liberar o atendimento. Há algo mais em que eu possa ajudar?
+                """
+            else:
+                # Mudança para prestador preferencial
+                return f"""
+                Entendo que você gostaria de mudar para um prestador preferencial.
+                
+                A troca de oficina será realizada. Temos um prazo de 48 horas para encaminhar, via link, as informações do agendamento.
+                
+                Nossa equipe entrará em contato com a oficina para liberar o atendimento via telefone e/ou email. Posso ajudar com mais alguma coisa?
+                """
+        else:
+            # Resposta simulada para consulta de status
+            status_response = ""
+            if "Agendar cliente" in sub_status:
+                status_response = "Nossa equipe entrará em contato em breve para agendar seu atendimento. Temos um prazo de 48 horas para realizar este contato."
+            elif "Negociar Carglass" in sub_status:
+                status_response = "Estamos verificando disponibilidade, peças e condições para o serviço solicitado. Nossa equipe entrará em contato assim que tivermos novidades."
+            elif "Análise Auditoria" in sub_status:
+                status_response = "Seu atendimento está na fase de análise pela nossa auditoria. Este é um procedimento padrão para garantir a qualidade do serviço."
+            else:
+                status_response = f"Seu atendimento está atualmente com status: {sub_status}. Você pode acompanhar as atualizações do seu atendimento por aqui ou entrar em contato com nossa central: 0800-727-2327."
+            
+            return f"""
+            Olá {nome}! Com base nos dados do seu atendimento, posso informar que:
+            
+            {status_response}
+            
+            Posso ajudar com mais alguma informação? 😊
+            """
     
     try:
         # Extrair dados do cliente
@@ -260,24 +385,51 @@ def process_user_query(user_input, client_data):
         nome = dados.get("nome", "Cliente")
         status = dados.get("status", "Em processamento")
         ordem = dados.get("ordem", "N/A")
+        sub_status = dados.get("subStatus", "")
+        
+        # Informações adicionais sobre mudança de prestador para o contexto da IA
+        mudanca_info = """
+        Se o cliente solicitar mudança de prestador, existem dois cenários:
+        
+        1. Mudança para prestador preferencial:
+           - A troca de oficina será realizada
+           - Prazo de 48 horas para encaminhar, via link, as informações do agendamento
+           - Equipe entra em contato com a oficina para liberar o atendimento
+           
+        2. Mudança de cidade:
+           - A troca de cidade será realizada
+           - Prazo de 48 horas para encaminhar o agendamento
+           - Equipe realiza a troca no sistema e contata a oficina da cidade indicada
+        
+        Importante: Para qualquer mudança, a oficina precisa estar credenciada e ter disponibilidade.
+        """
         
         # Construir prompt para o GPT-4 Turbo com personalidade mais amigável
         system_message = f"""
-        Você é o assistente virtual da CarGlass, amigável, prestativo e especializado em atendimento ao cliente.
+        Você é Bruna, assistente virtual da CarGlass, amigável, prestativa e especializada em atendimento ao cliente.
         
-        Personalidade: Use um tom amigável, caloroso e empático. Seja conversacional e natural como um atendente humano que se importa.
+        Personalidade: Use um tom amigável, caloroso e empático. Seja conversacional e natural como uma atendente humana que se importa.
         Refira-se ao cliente pelo nome quando possível. Use linguagem simples e direta, evitando termos técnicos desnecessários.
         Ocasionalmente use emojis adequados (😊, 👍, etc.) para tornar a conversa mais amigável, mas sem exagerar.
         
         Você está conversando com {nome}, que tem um atendimento com as seguintes informações:
         - Status: {status}
+        - Situação: {sub_status}
         - Ordem: {ordem}
         - Serviço: {dados.get('tipo_servico', 'N/A')}
         - Veículo: {dados.get('veiculo', {}).get('modelo', 'N/A')} - {dados.get('veiculo', {}).get('ano', 'N/A')}
         - Placa: {dados.get('veiculo', {}).get('placa', 'N/A')}
         
+        {mudanca_info}
+        
+        Instruções adicionais para SubStatus específicos:
+        - "Agendar cliente": Explique que a equipe entrará em contato para agendar o atendimento (prazo de 48h)
+        - "Negociar Carglass": Informe que estamos verificando disponibilidade, peças e condições
+        - "Análise Auditoria": Explique que é um procedimento padrão de qualidade
+        
         Forneça respostas úteis, empáticas e precisas com base no contexto do atendimento.
-        Limite suas respostas a no máximo 3 parágrafos. Seja conciso e direto.
+        Identifique se o cliente está perguntando sobre status ou solicitando mudança de prestador.
+        Limite suas respostas a no máximo 3 parágrafos. Seja concisa e direta.
         Não invente informações que não estão no contexto.
         Se não souber a resposta, sugira contatar a central de atendimento de forma amigável.
         
@@ -343,6 +495,7 @@ def process_user_input():
                 nome = dados.get("nome", "Cliente")
                 status = dados.get("status", "Em processamento")
                 ordem = dados.get("ordem", "N/A")
+                sub_status = dados.get("subStatus", "")
                 
                 # Exibir mensagem personalizada com os dados
                 status_tag = ""
@@ -353,25 +506,20 @@ def process_user_input():
                 else:
                     status_tag = '<span class="status-tag scheduled">Agendado</span>'
                 
-                # Usar a mensagem da IA se disponível
-                if "mensagem_ia" in client_data:
-                    response_message = client_data["mensagem_ia"]
-                else:
-                    response_message = f"""
-                    Olá {nome}! 😊 Encontrei suas informações.
-                    
-                    Seu atendimento está com status: {status_tag}
-                    
-                    Ordem de serviço: {ordem}
-                    
-                    Como posso ajudar você hoje? Você pode perguntar sobre:
-                    - Detalhes do seu atendimento
-                    - Previsão de conclusão
-                    - Peças utilizadas
-                    - Lojas mais próximas
-                    
-                    Estou à disposição para esclarecer qualquer dúvida!
-                    """
+                # Usa mensagem mais conversacional
+                response_message = f"""
+                Olá {nome}! 😊 Encontrei suas informações.
+                
+                Seu atendimento está com status: {status_tag}
+                Situação atual: {sub_status}
+                
+                Ordem de serviço: {ordem}
+                Serviço: {dados.get('tipo_servico', 'N/A')}
+                
+                Como posso ajudar você hoje? Você pode me perguntar sobre detalhes do seu atendimento, previsão de conclusão ou solicitar mudança de prestador.
+                
+                Estou à disposição para esclarecer qualquer dúvida!
+                """
                 
                 st.session_state.messages.append({"role": "assistant", "content": response_message})
             else:
@@ -424,7 +572,7 @@ def process_user_input():
 # Função para reiniciar a conversa
 def reset_conversation():
     st.session_state.messages = [
-        {"role": "assistant", "content": "Olá! Sou o assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
+        {"role": "assistant", "content": "Olá! Sou a Bruna, assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
     ]
     st.session_state.awaiting_identifier = True
     st.session_state.cliente_info = None
