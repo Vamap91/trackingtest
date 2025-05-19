@@ -123,7 +123,7 @@ with col2:
 # Inicializar variáveis de sessão
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Olá! sou a Bruna e estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
+        {"role": "assistant", "content": "Olá! Sou a Clara e estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
     ]
 
 if "awaiting_identifier" not in st.session_state:
@@ -321,7 +321,8 @@ def process_user_query(user_input, client_data):
     # Configurar API key da OpenAI - buscando do secrets do Streamlit
     try:
         # Tentativa de acessar a chave da API das secrets do Streamlit
-        openai.api_key = st.secrets["openai"]["api_key"]
+        api_key = st.secrets["openai"]["api_key"]
+        client = openai.OpenAI(api_key=api_key)
         has_api_key = True
     except (KeyError, TypeError):
         has_api_key = False
@@ -406,7 +407,7 @@ def process_user_query(user_input, client_data):
         
         # Construir prompt para o GPT-4 Turbo com personalidade mais amigável
         system_message = f"""
-        Você é Bruna, assistente virtual da CarGlass, amigável, prestativa e especializada em atendimento ao cliente.
+        Você é Clara, assistente virtual da CarGlass, amigável, prestativa e especializada em atendimento ao cliente.
         
         Personalidade: Use um tom amigável, caloroso e empático. Seja conversacional e natural como uma atendente humana que se importa.
         Refira-se ao cliente pelo nome quando possível. Use linguagem simples e direta, evitando termos técnicos desnecessários.
@@ -437,8 +438,7 @@ def process_user_query(user_input, client_data):
         """
         
         # Chamada para o modelo GPT-4 Turbo da OpenAI
-        # Usando o client da versão mais recente da OpenAI
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-4-turbo-preview",  # Usar GPT-4 Turbo
             messages=[
                 {"role": "system", "content": system_message},
@@ -572,7 +572,7 @@ def process_user_input():
 # Função para reiniciar a conversa
 def reset_conversation():
     st.session_state.messages = [
-        {"role": "assistant", "content": "Olá! Sou a Bruna, assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
+        {"role": "assistant", "content": "Olá! Sou a Clara, assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
     ]
     st.session_state.awaiting_identifier = True
     st.session_state.cliente_info = None
