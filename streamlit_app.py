@@ -547,16 +547,14 @@ def process_user_input():
             
         st.session_state.messages.append({"role": "assistant", "content": resposta})
 
-# Função para reiniciar a conversa
+# Função para reiniciar a conversa - sem usar rerun() diretamente no callback
 def reset_conversation():
+    # Definimos uma flag no session_state para indicar que queremos reiniciar
     st.session_state.messages = [
         {"role": "assistant", "content": "Olá! Sou a Clara, assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
     ]
     st.session_state.awaiting_identifier = True
     st.session_state.cliente_info = None
-    
-    # Forçar recarregamento da página para garantir atualização completa
-    st.rerun()
 
 # Exibir mensagens na interface de chat
 for msg in st.session_state.messages:
