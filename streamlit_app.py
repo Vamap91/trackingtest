@@ -77,29 +77,6 @@ st.markdown("""
         flex-grow: 1;
     }
     
-    .status-tag {
-        display: inline-block;
-        padding: 3px 12px;
-        border-radius: 50px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    
-    .status-tag.complete {
-        background-color: #d1fae5;
-        color: #047857;
-    }
-    
-    .status-tag.progress {
-        background-color: #ffedd5;
-        color: #c2410c;
-    }
-    
-    .status-tag.scheduled {
-        background-color: #dbeafe;
-        color: #1e40af;
-    }
-    
     .footer {
         text-align: center;
         margin-top: 3rem;
@@ -171,8 +148,8 @@ def get_client_data(tipo, valor):
         # Mostrar banner de ambiente de teste
         st.warning("⚠️ AMBIENTE DE TESTE - Usando dados simulados com base na estrutura real")
         
-        # Simular um pequeno atraso como em chamada real
-        time.sleep(1)
+        # Simular um pequeno atraso como em chamada real - REDUZIDO para evitar problemas de desempenho
+        time.sleep(0.3)  # Reduzido de 1s para 0.3s
         
         # Definir mapeamentos com base nas informações do desenvolvedor
         status_mappings = {
@@ -390,6 +367,8 @@ def process_user_query(user_input, client_data):
         
         # Informações adicionais sobre mudança de prestador para o contexto da IA
         mudanca_info = """
+        IMPORTANTE: Esteja muito atento a solicitações de mudança de prestador. Se o cliente mencionar qualquer variação de "mudar prestador", "trocar oficina", "mudar cidade", você deve explicar claramente o processo de mudança de prestador.
+        
         Se o cliente solicitar mudança de prestador, existem dois cenários:
         
         1. Mudança para prestador preferencial:
@@ -497,20 +476,19 @@ def process_user_input():
                 ordem = dados.get("ordem", "N/A")
                 sub_status = dados.get("subStatus", "")
                 
-                # Exibir mensagem personalizada com os dados
-                status_tag = ""
+                # Usar texto simples em vez de tags HTML para evitar problemas de formatação
                 if status.lower() == "concluído":
-                    status_tag = '<span class="status-tag complete">Concluído</span>'
+                    status_display = "Concluído ✅"
                 elif status.lower() == "em andamento":
-                    status_tag = '<span class="status-tag progress">Em andamento</span>'
+                    status_display = "Em andamento 🔄"
                 else:
-                    status_tag = '<span class="status-tag scheduled">Agendado</span>'
+                    status_display = "Agendado 📅"
                 
-                # Usa mensagem mais conversacional
+                # Usa mensagem mais conversacional com texto puro em vez de HTML
                 response_message = f"""
                 Olá {nome}! 😊 Encontrei suas informações.
                 
-                Seu atendimento está com status: {status_tag}
+                Seu atendimento está com status: {status_display}
                 Situação atual: {sub_status}
                 
                 Ordem de serviço: {ordem}
@@ -576,6 +554,9 @@ def reset_conversation():
     ]
     st.session_state.awaiting_identifier = True
     st.session_state.cliente_info = None
+    
+    # Forçar recarregamento da página para garantir atualização completa
+    st.experimental_rerun()
 
 # Exibir mensagens na interface de chat
 for msg in st.session_state.messages:
