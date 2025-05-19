@@ -137,7 +137,7 @@ def detect_identifier_type(text):
     # Não foi possível identificar
     return None, clean_text
 
-# Função para buscar dados do cliente
+# Função para buscar dados do cliente - OTIMIZADA
 def get_client_data(tipo, valor):
     """Função para buscar dados do cliente através da API ou dados simulados"""
     
@@ -148,115 +148,98 @@ def get_client_data(tipo, valor):
         # Mostrar banner de ambiente de teste
         st.warning("⚠️ AMBIENTE DE TESTE - Usando dados simulados com base na estrutura real")
         
-        # Simular um pequeno atraso como em chamada real - REDUZIDO para evitar problemas de desempenho
-        time.sleep(0.3)  # Reduzido de 1s para 0.3s
+        # Sem delay para melhorar desempenho
         
-        # Definir mapeamentos com base nas informações do desenvolvedor
-        status_mappings = {
-            # OrderAffiliateSubStatusId -> SubStatus
-            None: "Ordem de Serviço Aberta",
-            1: "Negociar Carglass", 
-            7: "Agendar cliente",
-            10: "Confirmar Execução", 
-            12: "Análise Auditoria",
-            29: "Aguardar Vistoria",
-            32: "Acompanhar Peça"
-        }
+        # DEBUG - Imprimir informações para diagnosticar problemas
+        st.write(f"Buscando: tipo={tipo}, valor={valor}")
         
-        inspection_status = {
-            "Aguardando Fotos": "Aguardando fotos para liberação",
-            "Realizar Vistoria": "Fotos Recebidas",
-            "Vistoria Realizada": "Peça Identificada",
-            None: ""
-        }
-        
-        # Dados simulados baseados em exemplos reais do Excel
-        ordem_data = {
-            "2653636": {"subStatusId": 7, "inspectionStatus": None, "veiculo": "S10 Pick-Up LS 2.8", "placa": "EUH6E61", "ano": "2022", "servico": "Parabrisa"},
-            "2653624": {"subStatusId": 1, "inspectionStatus": None, "veiculo": "Strada Freedom 1.3", "placa": "CAR0009", "ano": "2024", "servico": "Farol Direito/Passageiro"},
-            "2653623": {"subStatusId": 12, "inspectionStatus": None, "veiculo": "Fox Connect 1.6", "placa": "CAR0015", "ano": "2022", "servico": "Under Car"},
-            "2653621": {"subStatusId": 1, "inspectionStatus": None, "veiculo": "Strada Freedom 1.3", "placa": "CAR0009", "ano": "2024", "servico": "Farol Esquerdo/Motorista"},
-            "2653616": {"subStatusId": 1, "inspectionStatus": None, "veiculo": "CITY Sedan EX 1.5", "placa": "FVO1D28", "ano": "2014", "servico": "Parabrisa"}
-        }
-        
-        # Mapear CPFs e telefones fictícios para ordens 
-        cpf_ordem = {
-            "12345678900": "2653636",
-            "98765432100": "2653624", 
-            "11122233344": "2653623"
-        }
-        
-        telefone_ordem = {
-            "11987654321": "2653636",
-            "21987654321": "2653624",
-            "31987654321": "2653623"
-        }
-        
-        # Determinar a ordem com base no tipo de identificador
-        ordem_id = None
-        if tipo == "ordem":
-            ordem_id = valor
-        elif tipo == "cpf" and valor in cpf_ordem:
-            ordem_id = cpf_ordem[valor]
-        elif tipo == "telefone" and valor in telefone_ordem:
-            ordem_id = telefone_ordem[valor]
-        elif tipo == "placa":
-            # Buscar por placa
-            for oid, data in ordem_data.items():
-                if data["placa"] == valor.upper():
-                    ordem_id = oid
-                    break
-        
-        # Se encontrou uma ordem válida
-        if ordem_id and ordem_id in ordem_data:
-            ordem_info = ordem_data[ordem_id]
-            
-            # Determinar o status com base na lógica fornecida pelo desenvolvedor
-            sub_status_id = ordem_info["subStatusId"]
-            inspection_status_name = ordem_info["inspectionStatus"]
-            
-            # Aplicar lógica para determinar o status baseado nas regras fornecidas
-            status_description = status_mappings.get(sub_status_id, "Status não identificado")
-            
-            # Adicionar informação do inspection status quando relevante
-            if inspection_status_name:
-                inspection_info = inspection_status.get(inspection_status_name, "")
-                if inspection_info:
-                    status_description = inspection_info
-            
-            # Determinar status principal com base no SubStatus
-            if sub_status_id == 10:  # ConfirmarExecução
-                main_status = "Concluído"
-            elif sub_status_id in [7, 32]:  # Agendarcliente, AcompanharPeça
-                main_status = "Em andamento"
-            else:
-                main_status = "Agendado"
-                
-            # Criar mock com dados simulados
-            mock_data = {
+        # Dados simplificados - mapeamento direto para demonstração mais confiável
+        # Dados de ordem simplificados com valores diretos para evitar processamento complexo
+        dados_simulados = {
+            # Ordens
+            "2653636": {
                 "sucesso": True,
-                "tipo": tipo,
-                "valor": valor,
                 "dados": {
                     "nome": "Cliente Teste",
-                    "cpf": "123.456.789-00" if tipo == "cpf" else "N/A",
-                    "telefone": "(11) 98765-4321" if tipo == "telefone" else "N/A",
-                    "ordem": ordem_id,
-                    "status": main_status,
-                    "subStatus": status_description,
-                    "tipo_servico": ordem_info["servico"],
+                    "ordem": "2653636",
+                    "status": "Em andamento",
+                    "subStatus": "Agendar cliente",
+                    "tipo_servico": "Parabrisa",
                     "veiculo": {
-                        "modelo": ordem_info["veiculo"],
-                        "placa": ordem_info["placa"],
-                        "ano": ordem_info["ano"]
+                        "modelo": "S10 Pick-Up LS 2.8",
+                        "placa": "EUH6E61",
+                        "ano": "2022"
+                    }
+                }
+            },
+            # CPFs
+            "12345678900": {
+                "sucesso": True,
+                "dados": {
+                    "nome": "Cliente Teste CPF",
+                    "cpf": "123.456.789-00",
+                    "ordem": "2653636",
+                    "status": "Em andamento",
+                    "subStatus": "Agendar cliente",
+                    "tipo_servico": "Parabrisa", 
+                    "veiculo": {
+                        "modelo": "S10 Pick-Up LS 2.8",
+                        "placa": "EUH6E61",
+                        "ano": "2022"
+                    }
+                }
+            },
+            # Telefones
+            "11987654321": {
+                "sucesso": True,
+                "dados": {
+                    "nome": "Cliente Teste Telefone",
+                    "telefone": "(11) 98765-4321",
+                    "ordem": "2653636",
+                    "status": "Em andamento",
+                    "subStatus": "Agendar cliente",
+                    "tipo_servico": "Parabrisa",
+                    "veiculo": {
+                        "modelo": "S10 Pick-Up LS 2.8",
+                        "placa": "EUH6E61",
+                        "ano": "2022"
+                    }
+                }
+            },
+            # Placas
+            "EUH6E61": {
+                "sucesso": True,
+                "dados": {
+                    "nome": "Cliente Teste Placa",
+                    "ordem": "2653636", 
+                    "status": "Em andamento",
+                    "subStatus": "Agendar cliente",
+                    "tipo_servico": "Parabrisa",
+                    "veiculo": {
+                        "modelo": "S10 Pick-Up LS 2.8",
+                        "placa": "EUH6E61",
+                        "ano": "2022"
                     }
                 }
             }
-            
-            return mock_data
-        else:
-            # Não encontrou a ordem ou o identificador não está mapeado
-            return None
+        }
+        
+        # Verificar chave direta primeiro para ordem
+        if tipo == "ordem" and valor in dados_simulados:
+            st.write("Ordem encontrada diretamente!")
+            return dados_simulados[valor]
+        
+        # Para outros tipos, verificar o tipo específico
+        if tipo == "cpf" and valor in dados_simulados:
+            return dados_simulados[valor]
+        elif tipo == "telefone" and valor in dados_simulados:
+            return dados_simulados[valor]
+        elif tipo == "placa" and valor.upper() in dados_simulados:
+            return dados_simulados[valor.upper()]
+        
+        # Se não encontrou, retornar None
+        st.write("Não encontrou dados para o identificador!")
+        return None
     
     else:
         # Usar a API real (para ambiente interno com acesso VPN)
