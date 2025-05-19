@@ -556,7 +556,7 @@ def reset_conversation():
     st.session_state.cliente_info = None
     
     # Forçar recarregamento da página para garantir atualização completa
-    st.experimental_rerun()
+    st.rerun()
 
 # Exibir mensagens na interface de chat
 for msg in st.session_state.messages:
