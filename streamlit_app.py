@@ -1,11 +1,5 @@
 import streamlit as st
-import requests
-import json
-import time
 import re
-import openai
-import base64
-from pathlib import Path
 
 # Configuração da página - DEVE ser a primeira chamada Streamlit
 st.set_page_config(
@@ -15,559 +9,336 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Função para carregar imagens locais como base64
-@st.cache_data
-def get_image_base64(image_path):
-    """Carrega e converte uma imagem para base64 com cache"""
-    if not Path(image_path).exists():
-        return None
-    with open(image_path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode()
-
-# Carrega a imagem da atendente uma única vez
-atendente_img_path = "assets/atendente-carglass.jpg"
-atendente_img_b64 = get_image_base64(atendente_img_path)
-atendente_img_url = f"data:image/jpeg;base64,{atendente_img_b64}" if atendente_img_b64 else "https://api.dicebear.com/7.x/bottts/svg?seed=CarGlass"
-
-# CSS personalizado
+# CSS personalizado - simplificado
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    * {font-family: 'Inter', sans-serif;}
     
-    * {
-        font-family: 'Inter', sans-serif;
-    }
-    
-    h1, h2, h3 {
-        font-weight: 600;
-        color: #1e3a8a;
-    }
-    
-    .main-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
+    .main-header {text-align: center; margin-bottom: 1.5rem;}
     
     .chat-message {
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin-bottom: 10px;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 8px;
         display: flex;
         align-items: flex-start;
     }
     
-    .chat-message.user {
-        background-color: #e6f3ff;
-    }
-    
+    .chat-message.user {background-color: #e6f3ff;}
     .chat-message.assistant {
         background-color: #f0f7ff;
-        border-left: 5px solid #0066cc;
+        border-left: 4px solid #0066cc;
     }
     
     .chat-message .avatar {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
-        object-fit: cover;
-        margin-right: 1rem;
+        margin-right: 10px;
     }
     
-    .chat-message .message {
-        flex-grow: 1;
-    }
+    .chat-message .message {flex-grow: 1;}
     
     .footer {
         text-align: center;
-        margin-top: 3rem;
+        margin-top: 2rem;
         padding-top: 1rem;
         border-top: 1px solid #eee;
         color: #666;
+        font-size: 0.8rem;
     }
     
-    /* Remove o Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# Header
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.markdown('<div class="main-header"><img src="https://www.carglass.com.br/wp-content/uploads/2023/02/logoCarglass.png" width="200"></div>', unsafe_allow_html=True)
+# Cabeçalho
+st.markdown('<div class="main-header"><img src="https://www.carglass.com.br/wp-content/uploads/2023/02/logoCarglass.png" width="180"></div>', unsafe_allow_html=True)
+
+# Banner de ambiente de teste
+st.warning("⚠️ AMBIENTE DE TESTE - Usando dados simulados")
+
+# DADOS SIMULADOS - Hardcoded para garantir desempenho e confiabilidade
+DADOS_CLIENTES = {
+    # Ordens
+    "2653636": {
+        "nome": "João Silva",
+        "ordem": "2653636",
+        "status": "Em andamento 🔄",
+        "situacao": "Agendar cliente",
+        "servico": "Parabrisa",
+        "veiculo": "S10 Pick-Up LS 2.8",
+        "placa": "EUH6E61",
+        "ano": "2022"
+    },
+    "2653624": {
+        "nome": "Maria Souza",
+        "ordem": "2653624",
+        "status": "Agendado 📅",
+        "situacao": "Negociar Carglass",
+        "servico": "Farol Direito/Passageiro",
+        "veiculo": "Strada Freedom 1.3",
+        "placa": "CAR0009",
+        "ano": "2024"
+    },
+    "2653623": {
+        "nome": "Carlos Ferreira",
+        "ordem": "2653623",
+        "status": "Agendado 📅",
+        "situacao": "Análise Auditoria",
+        "servico": "Under Car",
+        "veiculo": "Fox Connect 1.6",
+        "placa": "CAR0015",
+        "ano": "2022"
+    },
+    
+    # CPFs
+    "12345678900": {
+        "nome": "João Silva",
+        "ordem": "2653636",
+        "status": "Em andamento 🔄",
+        "situacao": "Agendar cliente",
+        "servico": "Parabrisa",
+        "veiculo": "S10 Pick-Up LS 2.8",
+        "placa": "EUH6E61",
+        "ano": "2022"
+    },
+    
+    # Telefones
+    "11987654321": {
+        "nome": "João Silva",
+        "ordem": "2653636",
+        "status": "Em andamento 🔄",
+        "situacao": "Agendar cliente",
+        "servico": "Parabrisa",
+        "veiculo": "S10 Pick-Up LS 2.8",
+        "placa": "EUH6E61",
+        "ano": "2022"
+    },
+    
+    # Placas
+    "EUH6E61": {
+        "nome": "João Silva",
+        "ordem": "2653636",
+        "status": "Em andamento 🔄",
+        "situacao": "Agendar cliente",
+        "servico": "Parabrisa",
+        "veiculo": "S10 Pick-Up LS 2.8",
+        "placa": "EUH6E61",
+        "ano": "2022"
+    }
+}
+
+# Mapeamento para respostas rápidas baseadas em palavras-chave
+RESPOSTAS_RAPIDAS = {
+    "mudanca_prestador": """
+    Entendo que você gostaria de mudar para um prestador preferencial.
+    
+    A troca de oficina será realizada. Temos um prazo de 48 horas para encaminhar, via link, as informações do agendamento.
+    
+    Nossa equipe entrará em contato com a oficina para liberar o atendimento via telefone e/ou email. Posso ajudar com mais alguma coisa?
+    """,
+    
+    "mudanca_cidade": """
+    Entendo que você deseja mudar o local de atendimento para outra cidade.
+    
+    A troca de cidade será realizada. Temos um prazo de 48 horas para encaminhar, via link, as informações do agendamento.
+    
+    Nossa equipe realizará a troca no sistema e entrará em contato com a oficina da cidade indicada para liberar o atendimento. Há algo mais em que eu possa ajudar?
+    """,
+    
+    "status_agendar": """
+    Nossa equipe entrará em contato em breve para agendar seu atendimento. Temos um prazo de 48 horas para realizar este contato.
+    
+    Você receberá uma ligação ou mensagem para definir a data e horário mais convenientes.
+    
+    Posso ajudar com mais alguma informação?
+    """,
+    
+    "status_negociar": """
+    Estamos verificando disponibilidade, peças e condições para o serviço solicitado. 
+    
+    Nossa equipe entrará em contato assim que tivermos novidades, normalmente dentro de 24-48 horas.
+    
+    Posso esclarecer mais alguma dúvida?
+    """,
+    
+    "status_auditoria": """
+    Seu atendimento está na fase de análise pela nossa auditoria. Este é um procedimento padrão para garantir a qualidade do serviço.
+    
+    Esta etapa geralmente leva até 24 horas para ser concluída.
+    
+    Assim que a análise for concluída, entraremos em contato para os próximos passos. Posso ajudar com mais alguma coisa?
+    """
+}
 
 # Inicializar variáveis de sessão
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Olá! Sou a Clara e estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
+        {"role": "assistant", "content": "Olá! Sou a Clara, assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
     ]
 
-if "awaiting_identifier" not in st.session_state:
-    st.session_state.awaiting_identifier = True
+if "identificado" not in st.session_state:
+    st.session_state.identificado = False
 
-if "cliente_info" not in st.session_state:
-    st.session_state.cliente_info = None
+if "cliente_dados" not in st.session_state:
+    st.session_state.cliente_dados = None
 
-# Função para detectar o tipo de identificador
-def detect_identifier_type(text):
-    # Remove caracteres não alfanuméricos
-    clean_text = re.sub(r'[^a-zA-Z0-9]', '', text)
+# Função simplificada para identificar o cliente
+def identificar_cliente(input_text):
+    # Limpar o input
+    clean_text = re.sub(r'[^a-zA-Z0-9]', '', input_text)
     
-    # Verifica CPF (11 dígitos numéricos)
-    if re.match(r'^\d{11}$', clean_text):
-        return "cpf", clean_text
+    # Verificar CPF (11 dígitos)
+    if re.match(r'^\d{11}$', clean_text) and clean_text in DADOS_CLIENTES:
+        return "cpf", DADOS_CLIENTES[clean_text]
     
-    # Verifica telefone (10-11 dígitos numéricos)
-    elif re.match(r'^\d{10,11}$', clean_text):
-        return "telefone", clean_text
+    # Verificar telefone (10-11 dígitos)
+    if re.match(r'^\d{10,11}$', clean_text) and clean_text in DADOS_CLIENTES:
+        return "telefone", DADOS_CLIENTES[clean_text]
     
-    # Verifica placa (3 letras + 4 números ou 3 letras + 1 número + 1 letra + 2 números)
-    elif re.match(r'^[A-Za-z]{3}\d{4}$', clean_text) or re.match(r'^[A-Za-z]{3}\d[A-Za-z]\d{2}$', clean_text):
-        return "placa", clean_text.upper()
+    # Verificar ordem (5-8 dígitos ou começando com ORD)
+    if (re.match(r'^\d{5,8}$', clean_text) or clean_text.upper().startswith("ORD")) and clean_text in DADOS_CLIENTES:
+        return "ordem", DADOS_CLIENTES[clean_text]
     
-    # Verifica chassi (17 caracteres alfanuméricos)
-    elif re.match(r'^[A-HJ-NPR-Z0-9]{17}$', clean_text.upper()):
-        return "chassi", clean_text.upper()
+    # Verificar placa
+    placa_upper = clean_text.upper()
+    if (re.match(r'^[A-Z]{3}\d{4}$', placa_upper) or re.match(r'^[A-Z]{3}\d[A-Z]\d{2}$', placa_upper)) and placa_upper in DADOS_CLIENTES:
+        return "placa", DADOS_CLIENTES[placa_upper]
     
-    # Verifica ordem (começa com "ORD" ou números)
-    elif clean_text.upper().startswith("ORD") or re.match(r'^\d{5,8}$', clean_text):
-        return "ordem", clean_text.upper()
+    # Verificação direta - para testes
+    if clean_text in DADOS_CLIENTES:
+        return "identificador", DADOS_CLIENTES[clean_text]
     
-    # Não foi possível identificar
-    return None, clean_text
+    return None, None
 
-# Função para buscar dados do cliente - OTIMIZADA
-def get_client_data(tipo, valor):
-    """Função para buscar dados do cliente através da API ou dados simulados"""
+# Função para determinar resposta para perguntas
+def responder_pergunta(pergunta, cliente_dados):
+    pergunta_lower = pergunta.lower()
     
-    # Configuração - modo de simulação para testes
-    USAR_DADOS_SIMULADOS = True  # Alternar para False quando usar localmente com API real
+    # Verificar mudança de prestador/cidade
+    mudanca_patterns = ["mudar", "trocar", "outra oficina", "outro prestador", "mudança", "preferencial"]
+    cidade_patterns = ["cidade", "local", "localidade", "município", "outra cidade"]
     
-    if USAR_DADOS_SIMULADOS:
-        # Mostrar banner de ambiente de teste
-        st.warning("⚠️ AMBIENTE DE TESTE - Usando dados simulados com base na estrutura real")
-        
-        # Sem delay para melhorar desempenho
-        
-        # DEBUG - Imprimir informações para diagnosticar problemas
-        st.write(f"Buscando: tipo={tipo}, valor={valor}")
-        
-        # Dados simplificados - mapeamento direto para demonstração mais confiável
-        # Dados de ordem simplificados com valores diretos para evitar processamento complexo
-        dados_simulados = {
-            # Ordens
-            "2653636": {
-                "sucesso": True,
-                "dados": {
-                    "nome": "Cliente Teste",
-                    "ordem": "2653636",
-                    "status": "Em andamento",
-                    "subStatus": "Agendar cliente",
-                    "tipo_servico": "Parabrisa",
-                    "veiculo": {
-                        "modelo": "S10 Pick-Up LS 2.8",
-                        "placa": "EUH6E61",
-                        "ano": "2022"
-                    }
-                }
-            },
-            # CPFs
-            "12345678900": {
-                "sucesso": True,
-                "dados": {
-                    "nome": "Cliente Teste CPF",
-                    "cpf": "123.456.789-00",
-                    "ordem": "2653636",
-                    "status": "Em andamento",
-                    "subStatus": "Agendar cliente",
-                    "tipo_servico": "Parabrisa", 
-                    "veiculo": {
-                        "modelo": "S10 Pick-Up LS 2.8",
-                        "placa": "EUH6E61",
-                        "ano": "2022"
-                    }
-                }
-            },
-            # Telefones
-            "11987654321": {
-                "sucesso": True,
-                "dados": {
-                    "nome": "Cliente Teste Telefone",
-                    "telefone": "(11) 98765-4321",
-                    "ordem": "2653636",
-                    "status": "Em andamento",
-                    "subStatus": "Agendar cliente",
-                    "tipo_servico": "Parabrisa",
-                    "veiculo": {
-                        "modelo": "S10 Pick-Up LS 2.8",
-                        "placa": "EUH6E61",
-                        "ano": "2022"
-                    }
-                }
-            },
-            # Placas
-            "EUH6E61": {
-                "sucesso": True,
-                "dados": {
-                    "nome": "Cliente Teste Placa",
-                    "ordem": "2653636", 
-                    "status": "Em andamento",
-                    "subStatus": "Agendar cliente",
-                    "tipo_servico": "Parabrisa",
-                    "veiculo": {
-                        "modelo": "S10 Pick-Up LS 2.8",
-                        "placa": "EUH6E61",
-                        "ano": "2022"
-                    }
-                }
-            }
-        }
-        
-        # Verificar chave direta primeiro para ordem
-        if tipo == "ordem" and valor in dados_simulados:
-            st.write("Ordem encontrada diretamente!")
-            return dados_simulados[valor]
-        
-        # Para outros tipos, verificar o tipo específico
-        if tipo == "cpf" and valor in dados_simulados:
-            return dados_simulados[valor]
-        elif tipo == "telefone" and valor in dados_simulados:
-            return dados_simulados[valor]
-        elif tipo == "placa" and valor.upper() in dados_simulados:
-            return dados_simulados[valor.upper()]
-        
-        # Se não encontrou, retornar None
-        st.write("Não encontrou dados para o identificador!")
-        return None
-    
-    else:
-        # Usar a API real (para ambiente interno com acesso VPN)
-        try:
-            # URL base do serviço
-            base_url = "http://fusion-hml.carglass.hml.local:3000/api/status"
-            
-            # Montar URL específica com base no tipo de identificador
-            api_url = f"{base_url}/{tipo}/{valor}"
-            
-            # Headers da requisição
-            headers = {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-            
-            # Fazer a requisição GET para a API
-            response = requests.get(api_url, headers=headers, timeout=30)
-            
-            # Verificar se a resposta foi bem-sucedida
-            if response.status_code == 200:
-                try:
-                    return response.json()
-                except json.JSONDecodeError:
-                    st.error("Erro ao processar resposta do servidor.")
-                    return None
-            else:
-                st.warning(f"Servidor retornou status {response.status_code}")
-                return None
-                
-        except Exception as e:
-            st.error(f"Erro ao consultar API: {str(e)}")
-            return None
-
-# Função para processar consultas do usuário com IA
-def process_user_query(user_input, client_data):
-    """Processa consultas do usuário usando GPT-4 Turbo após identificação"""
-    
-    # Configurar API key da OpenAI - buscando do secrets do Streamlit
-    try:
-        # Tentativa de acessar a chave da API das secrets do Streamlit
-        api_key = st.secrets["openai"]["api_key"]
-        client = openai.OpenAI(api_key=api_key)
-        has_api_key = True
-    except (KeyError, TypeError):
-        has_api_key = False
-    
-    if not has_api_key:
-        st.warning("⚠️ AMBIENTE DE TESTE - API OpenAI não configurada. Usando respostas simuladas.")
-        
-        # Extrair dados do cliente para resposta simulada
-        dados = client_data.get("dados", {})
-        nome = dados.get("nome", "Cliente")
-        sub_status = dados.get("subStatus", "")
-        
-        # Verificar se o input contém palavras-chave sobre mudança de prestador
-        mudanca_patterns = ["mudar", "trocar", "outra oficina", "outro prestador", "mudança", "prestador", "preferencial", "cidade"]
-        has_mudanca_intent = any(pattern in user_input.lower() for pattern in mudanca_patterns)
-        
-        if has_mudanca_intent:
-            # Resposta simulada para mudança de prestador
-            cidade_patterns = ["cidade", "local", "localidade", "município", "outra cidade"]
-            if any(pattern in user_input.lower() for pattern in cidade_patterns):
-                # Mudança de cidade
-                return f"""
-                Entendo que você deseja mudar o local de atendimento para outra cidade.
-                
-                A troca de cidade será realizada. Temos um prazo de 48 horas para encaminhar, via link, as informações do agendamento.
-                
-                Nossa equipe realizará a troca no sistema e entrará em contato com a oficina da cidade indicada para liberar o atendimento. Há algo mais em que eu possa ajudar?
-                """
-            else:
-                # Mudança para prestador preferencial
-                return f"""
-                Entendo que você gostaria de mudar para um prestador preferencial.
-                
-                A troca de oficina será realizada. Temos um prazo de 48 horas para encaminhar, via link, as informações do agendamento.
-                
-                Nossa equipe entrará em contato com a oficina para liberar o atendimento via telefone e/ou email. Posso ajudar com mais alguma coisa?
-                """
+    if any(pattern in pergunta_lower for pattern in mudanca_patterns):
+        if any(pattern in pergunta_lower for pattern in cidade_patterns):
+            return RESPOSTAS_RAPIDAS["mudanca_cidade"]
         else:
-            # Resposta simulada para consulta de status
-            status_response = ""
-            if "Agendar cliente" in sub_status:
-                status_response = "Nossa equipe entrará em contato em breve para agendar seu atendimento. Temos um prazo de 48 horas para realizar este contato."
-            elif "Negociar Carglass" in sub_status:
-                status_response = "Estamos verificando disponibilidade, peças e condições para o serviço solicitado. Nossa equipe entrará em contato assim que tivermos novidades."
-            elif "Análise Auditoria" in sub_status:
-                status_response = "Seu atendimento está na fase de análise pela nossa auditoria. Este é um procedimento padrão para garantir a qualidade do serviço."
-            else:
-                status_response = f"Seu atendimento está atualmente com status: {sub_status}. Você pode acompanhar as atualizações do seu atendimento por aqui ou entrar em contato com nossa central: 0800-727-2327."
-            
-            return f"""
-            Olá {nome}! Com base nos dados do seu atendimento, posso informar que:
-            
-            {status_response}
-            
-            Posso ajudar com mais alguma informação? 😊
-            """
+            return RESPOSTAS_RAPIDAS["mudanca_prestador"]
     
-    try:
-        # Extrair dados do cliente
-        dados = client_data.get("dados", {})
-        nome = dados.get("nome", "Cliente")
-        status = dados.get("status", "Em processamento")
-        ordem = dados.get("ordem", "N/A")
-        sub_status = dados.get("subStatus", "")
-        
-        # Informações adicionais sobre mudança de prestador para o contexto da IA
-        mudanca_info = """
-        IMPORTANTE: Esteja muito atento a solicitações de mudança de prestador. Se o cliente mencionar qualquer variação de "mudar prestador", "trocar oficina", "mudar cidade", você deve explicar claramente o processo de mudança de prestador.
-        
-        Se o cliente solicitar mudança de prestador, existem dois cenários:
-        
-        1. Mudança para prestador preferencial:
-           - A troca de oficina será realizada
-           - Prazo de 48 horas para encaminhar, via link, as informações do agendamento
-           - Equipe entra em contato com a oficina para liberar o atendimento
-           
-        2. Mudança de cidade:
-           - A troca de cidade será realizada
-           - Prazo de 48 horas para encaminhar o agendamento
-           - Equipe realiza a troca no sistema e contata a oficina da cidade indicada
-        
-        Importante: Para qualquer mudança, a oficina precisa estar credenciada e ter disponibilidade.
-        """
-        
-        # Construir prompt para o GPT-4 Turbo com personalidade mais amigável
-        system_message = f"""
-        Você é Clara, assistente virtual da CarGlass, amigável, prestativa e especializada em atendimento ao cliente.
-        
-        Personalidade: Use um tom amigável, caloroso e empático. Seja conversacional e natural como uma atendente humana que se importa.
-        Refira-se ao cliente pelo nome quando possível. Use linguagem simples e direta, evitando termos técnicos desnecessários.
-        Ocasionalmente use emojis adequados (😊, 👍, etc.) para tornar a conversa mais amigável, mas sem exagerar.
-        
-        Você está conversando com {nome}, que tem um atendimento com as seguintes informações:
-        - Status: {status}
-        - Situação: {sub_status}
-        - Ordem: {ordem}
-        - Serviço: {dados.get('tipo_servico', 'N/A')}
-        - Veículo: {dados.get('veiculo', {}).get('modelo', 'N/A')} - {dados.get('veiculo', {}).get('ano', 'N/A')}
-        - Placa: {dados.get('veiculo', {}).get('placa', 'N/A')}
-        
-        {mudanca_info}
-        
-        Instruções adicionais para SubStatus específicos:
-        - "Agendar cliente": Explique que a equipe entrará em contato para agendar o atendimento (prazo de 48h)
-        - "Negociar Carglass": Informe que estamos verificando disponibilidade, peças e condições
-        - "Análise Auditoria": Explique que é um procedimento padrão de qualidade
-        
-        Forneça respostas úteis, empáticas e precisas com base no contexto do atendimento.
-        Identifique se o cliente está perguntando sobre status ou solicitando mudança de prestador.
-        Limite suas respostas a no máximo 3 parágrafos. Seja concisa e direta.
-        Não invente informações que não estão no contexto.
-        Se não souber a resposta, sugira contatar a central de atendimento de forma amigável.
-        
-        Quando apropriado, mostre entusiasmo com pequenas expressões como "Claro!", "Com prazer!" ou "Sem problema!" no início das respostas.
-        """
-        
-        # Chamada para o modelo GPT-4 Turbo da OpenAI
-        response = client.chat.completions.create(
-            model="gpt-4-turbo-preview",  # Usar GPT-4 Turbo
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_input}
-            ],
-            max_tokens=300,
-            temperature=0.7
-        )
-        
-        # Extrair e retornar a resposta
-        return response.choices[0].message.content
-        
-    except Exception as e:
-        st.error(f"Erro ao processar com IA: {str(e)}")
-        return "Desculpe, não foi possível processar sua pergunta. Por favor, tente novamente ou entre em contato com nossa central de atendimento pelo 0800-727-2327."
+    # Verificar status específicos
+    situacao = cliente_dados.get("situacao", "").lower()
+    
+    if "agendar cliente" in situacao:
+        return RESPOSTAS_RAPIDAS["status_agendar"]
+    elif "negociar carglass" in situacao:
+        return RESPOSTAS_RAPIDAS["status_negociar"]
+    elif "análise auditoria" in situacao:
+        return RESPOSTAS_RAPIDAS["status_auditoria"]
+    
+    # Resposta padrão
+    return f"""
+    Olá {cliente_dados['nome']}! Com base nos dados do seu atendimento, posso informar que:
+    
+    Seu atendimento para o serviço de {cliente_dados['servico']} no veículo {cliente_dados['veiculo']} está com status: {cliente_dados['status']}
+    
+    Situação atual: {cliente_dados['situacao']}
+    
+    Para mais detalhes específicos ou outras dúvidas, estou à disposição. Você também pode entrar em contato com nossa central pelo 0800-727-2327.
+    """
 
 # Função para processar a entrada do usuário
-def process_user_input():
+def processar_entrada():
     user_input = st.session_state.user_input
     
     if not user_input:
         return
-        
-    # Adicionar mensagem do usuário ao histórico
+    
+    # Adicionar mensagem do usuário
     st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state.user_input = ""  # Limpar campo
     
-    # Resetar o input para limpar o campo
-    st.session_state.user_input = ""
-    
-    # Se estiver aguardando identificador
-    if st.session_state.awaiting_identifier:
-        # Tentar detectar o tipo de identificador
-        tipo, valor = detect_identifier_type(user_input)
+    # Se ainda não identificou o cliente
+    if not st.session_state.identificado:
+        tipo, dados = identificar_cliente(user_input)
         
-        if tipo:
-            # Mostrar mensagem de processamento temporária
-            temp_message = "Estou consultando suas informações..."
-            st.session_state.messages.append({"role": "assistant", "content": temp_message})
+        if dados:
+            # Cliente identificado com sucesso
+            st.session_state.identificado = True
+            st.session_state.cliente_dados = dados
             
-            # Processar a solicitação
-            with st.spinner("Consultando..."):
-                client_data = get_client_data(tipo, valor)
+            # Gerar mensagem de boas-vindas
+            welcome_msg = f"""
+            Olá {dados['nome']}! 😊 Encontrei suas informações.
             
-            # Remover a mensagem temporária
-            st.session_state.messages.pop()
+            Seu atendimento está com status: {dados['status']}
+            Situação atual: {dados['situacao']}
             
-            if client_data and client_data.get("sucesso"):
-                # Armazenar dados do cliente
-                st.session_state.cliente_info = client_data
-                st.session_state.awaiting_identifier = False
-                
-                # Extrair informações principais
-                dados = client_data.get("dados", {})
-                nome = dados.get("nome", "Cliente")
-                status = dados.get("status", "Em processamento")
-                ordem = dados.get("ordem", "N/A")
-                sub_status = dados.get("subStatus", "")
-                
-                # Usar texto simples em vez de tags HTML para evitar problemas de formatação
-                if status.lower() == "concluído":
-                    status_display = "Concluído ✅"
-                elif status.lower() == "em andamento":
-                    status_display = "Em andamento 🔄"
-                else:
-                    status_display = "Agendado 📅"
-                
-                # Usa mensagem mais conversacional com texto puro em vez de HTML
-                response_message = f"""
-                Olá {nome}! 😊 Encontrei suas informações.
-                
-                Seu atendimento está com status: {status_display}
-                Situação atual: {sub_status}
-                
-                Ordem de serviço: {ordem}
-                Serviço: {dados.get('tipo_servico', 'N/A')}
-                
-                Como posso ajudar você hoje? Você pode me perguntar sobre detalhes do seu atendimento, previsão de conclusão ou solicitar mudança de prestador.
-                
-                Estou à disposição para esclarecer qualquer dúvida!
-                """
-                
-                st.session_state.messages.append({"role": "assistant", "content": response_message})
-            else:
-                # Não encontrou o cliente
-                st.session_state.messages.append({
-                    "role": "assistant", 
-                    "content": f"""
-                    Não consegui encontrar informações com o {tipo} fornecido. 😕
-                    
-                    Por favor, verifique se digitou corretamente ou tente outro tipo de identificação.
-                    
-                    Você pode informar:
-                    - CPF (11 dígitos)
-                    - Telefone (com DDD)
-                    - Placa do veículo
-                    - Número da ordem de serviço
-                    - Chassi do veículo
-                    
-                    Estou aqui para ajudar quando estiver pronto! 👍
-                    """
-                })
+            Ordem de serviço: {dados['ordem']}
+            Serviço: {dados['servico']}
+            Veículo: {dados['veiculo']} - {dados['ano']}
+            Placa: {dados['placa']}
+            
+            Como posso ajudar você hoje? Você pode me perguntar sobre detalhes do seu atendimento, previsão de conclusão ou solicitar mudança de prestador.
+            """
+            
+            st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
         else:
-            # Não conseguiu identificar o tipo
+            # Cliente não identificado
             st.session_state.messages.append({
                 "role": "assistant", 
-                "content": """
-                Não consegui identificar o formato da informação fornecida. 😕
+                "content": f"""
+                Não consegui encontrar informações com o identificador fornecido. 😕
                 
-                Por favor, digite um dos seguintes:
+                Por favor, verifique se digitou corretamente ou tente outro tipo de identificação:
                 - CPF (11 dígitos)
                 - Telefone (com DDD)
-                - Placa do veículo (AAA0000 ou AAA0A00)
+                - Placa do veículo
                 - Número da ordem de serviço
-                - Chassi do veículo (17 caracteres)
                 
-                Vamos tentar novamente? Estou aqui para ajudar! 😊
+                Estou aqui para ajudar quando estiver pronto! 👍
                 """
             })
-    # Se já identificou o cliente, processar perguntas adicionais
     else:
-        # Aqui processamos as perguntas usando a IA com contexto do cliente
-        client_data = st.session_state.cliente_info
-        
-        # Processar com a OpenAI ou resposta simulada
-        with st.spinner("Processando sua pergunta..."):
-            resposta = process_user_query(user_input, client_data)
-            
+        # Cliente já identificado - processar perguntas
+        resposta = responder_pergunta(user_input, st.session_state.cliente_dados)
         st.session_state.messages.append({"role": "assistant", "content": resposta})
 
-# Função para reiniciar a conversa - sem usar rerun() diretamente no callback
-def reset_conversation():
-    # Definimos uma flag no session_state para indicar que queremos reiniciar
+# Função para reiniciar conversa
+def reiniciar_conversa():
     st.session_state.messages = [
-        {"role": "assistant", "content": "Olá! Sou a Clara, assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento, status do serviço e esclarecer qualquer dúvida que você tenha! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
+        {"role": "assistant", "content": "Olá! Sou a Clara, assistente virtual da CarGlass. Estou aqui para ajudar com informações sobre seu atendimento! 😊 Por favor, digite seu CPF, telefone, placa do veículo, número da ordem ou chassi para começarmos."}
     ]
-    st.session_state.awaiting_identifier = True
-    st.session_state.cliente_info = None
+    st.session_state.identificado = False
+    st.session_state.cliente_dados = None
 
-# Exibir mensagens na interface de chat
+# Mostrar histórico de conversa
 for msg in st.session_state.messages:
-    # Aqui está a mudança principal: usar a imagem da atendente para o assistente
-    avatar_url = atendente_img_url if msg["role"] == "assistant" else "https://api.dicebear.com/7.x/personas/svg?seed=Client"
+    avatar = "https://api.dicebear.com/7.x/bottts/svg?seed=CarGlass" if msg["role"] == "assistant" else "https://api.dicebear.com/7.x/personas/svg?seed=Client"
     
-    with st.container():
-        st.markdown(f"""
-        <div class="chat-message {msg['role']}">
-            <img src="{avatar_url}" class="avatar" alt="{msg['role']}">
-            <div class="message">{msg['content']}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="chat-message {msg['role']}">
+        <img src="{avatar}" class="avatar" alt="{msg['role']}">
+        <div class="message">{msg['content']}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Container para entrada do usuário
-with st.container():
-    # Campo de entrada do usuário
-    st.text_input(
-        "Digite aqui sua mensagem ou identificação", 
-        key="user_input",
-        on_change=process_user_input,
-        placeholder="CPF, telefone, placa, chassi ou ordem de serviço..."
-    )
-    
-    # Botões de ação
-    col1, col2, col3 = st.columns([3, 2, 3])
-    with col2:
-        st.button("Nova Consulta", on_click=reset_conversation)
+# Campo de entrada e botões
+st.text_input(
+    "Digite aqui sua mensagem ou identificação", 
+    key="user_input",
+    on_change=processar_entrada,
+    placeholder="CPF, telefone, placa ou ordem de serviço..."
+)
 
-# Footer
+col1, col2, col3 = st.columns([3, 2, 3])
+with col2:
+    st.button("Nova Consulta", on_click=reiniciar_conversa)
+
+# Rodapé
 st.markdown("""
 <div class="footer">
     <p>© 2025 CarGlass Brasil - Em teste e criado por Vinicius Paschoa</p>
